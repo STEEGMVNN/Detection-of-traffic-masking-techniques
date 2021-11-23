@@ -81,6 +81,7 @@ def analizar_pcap():
 
 def analisis_en_tiempo_real():
     interfaz = input("Introduce la interfaz por la que quieres capturar tráfico: ")
+    paquetes = int(input("Introduce la cantidad de packetes que quieres capturar y comprobar: "))
     print("")
     print("Configurando interfaz y configurando los filtros...")
     captura = pyshark.LiveCapture(interface=(interfaz), display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
@@ -95,7 +96,7 @@ def analisis_en_tiempo_real():
     ip_dst = ''
     mac_src = ''
     validador = False
-    for packet in captura.sniff_continuously(packet_count=34):
+    for packet in captura.sniff_continuously(packet_count=paquetes):
         if (validador == True):
             if (server_name != http_host):
                 print("")
@@ -108,6 +109,9 @@ def analisis_en_tiempo_real():
                 print("     -Server Name: " + server_name)
                 print("     -HTTP Host: " + http_host)
                 print("////////////////////////////////////////////")
+                f = open("/var/log/demasc/alerts.log", "a")
+                f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
+                f.close()
             else:
                 print("")
                 print("Trafico normal")
@@ -139,6 +143,9 @@ def analisis_en_tiempo_real():
             print("     -Server Name: " + server_name)
             print("     -HTTP Host: " + http_host)
             print("////////////////////////////////////////////")
+            f = open("/var/log/demasc/alerts.log", "a")
+            f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
+            f.close()
         else:
             print("")
             print("Trafico normal")
@@ -147,57 +154,65 @@ def analisis_en_tiempo_real():
     print("")
 
 def socket_escribir():
-    default_length = 256
-    # Generating private key (RsaKey object) of key length of 1024 bits
-    private_key = RSA.generate(2048)
-    # Generating the public key (RsaKey object) from the private key
-    public_key = private_key.publickey()
-
-    # Converting the RsaKey objects to string
-    public_pem = public_key.export_key().decode()
-
-    # Instantiating PKCS1_OAEP object with the private key for decryption
-    decrypt = PKCS1_OAEP.new(key=private_key)
-
-    HOST = '192.168.1.11'  # Standard loopback interface address (localhost)
-    PORT = 4444  # Port to listen on (non-privileged ports are > 1023)
-
-    # Creamos/abrimos el fichero que va a almacenar los pre masters.
     try:
-        f = open("/tmp/.ssl-key.log", "x")
-        f = open("/tmp/.ssl-key.log", "w")
+        default_length = 256
+        # Generating private key (RsaKey object) of key length of 1024 bits
+        private_key = RSA.generate(2048)
+        # Generating the public key (RsaKey object) from the private key
+        public_key = private_key.publickey()
+
+        # Converting the RsaKey objects to string
+        public_pem = public_key.export_key().decode()
+
+        # Instantiating PKCS1_OAEP object with the private key for decryption
+        decrypt = PKCS1_OAEP.new(key=private_key)
+
+        HOST = '192.168.1.11'  # Standard loopback interface address (localhost)
+        PORT = 4444  # Port to listen on (non-privileged ports are > 1023)
+
+        # Creamos/abrimos el fichero que va a almacenar los pre masters.
+        try:
+            f = open("/tmp/.ssl-key.log", "x")
+            f = open("/tmp/.ssl-key.log", "w")
+        except:
+            f = open("/tmp/.ssl-key.log", "w")
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((HOST, PORT))
+            s.listen()
+            conn, addr = s.accept()
+            with conn:
+                print('Connected by: ', addr)
+                conn.sendall(str.encode(public_pem))
+                while True:
+                    data = conn.recv(1024)
+                    if not data:
+                        break
+                    length = len(data)
+                    offset = 0
+                    res = []
+
+                    while length - offset > 0:
+                        if length - offset > default_length:
+                            res.append(decrypt.decrypt(data[offset: offset + default_length]))
+                        else:
+                            res.append(decrypt.decrypt(data[offset:]))
+                        offset += default_length
+                    decrypt_byte = b''.join(res)
+                    decrypted = decrypt_byte.decode()
+                    f.write(decrypted)
+                    f.flush()
+                    os.fsync(f.fileno())
+            f.close()
+            conn.close()
+            print("Escrito el fichero")
     except:
-        f = open("/tmp/.ssl-key.log", "w")
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        conn, addr = s.accept()
-        with conn:
-            print('Connected by: ', addr)
-            conn.sendall(str.encode(public_pem))
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                length = len(data)
-                offset = 0
-                res = []
-
-                while length - offset > 0:
-                    if length - offset > default_length:
-                        res.append(decrypt.decrypt(data[offset: offset + default_length]))
-                    else:
-                        res.append(decrypt.decrypt(data[offset:]))
-                    offset += default_length
-                decrypt_byte = b''.join(res)
-                decrypted = decrypt_byte.decode()
-                f.write(decrypted)
-                f.flush()
-                os.fsync(f.fileno())
-        f.close()
-        conn.close()
-        print("Escrito el fichero")
+        print("\n")
+        print("[ERROR] No se ha podido iniciar el socket. Revisa que ningún cliente está activo.")
+        try:
+            sys.exit(1)
+        except:
+            os._exit(1)
 
 def main():
     """# Inizializo el parser de argumentos
@@ -219,6 +234,19 @@ def main():
     socket_writer.start()
     print("Socket iniciado")
 
+    # Compruebo si existe el fichero de logs de este programa. Si no existe lo creo.
+    folder_exists = os.path.isdir('/var/log/demasc')
+    if folder_exists:
+        file_exists = os.path.exists('/var/log/demasc/alerts.log')
+
+        if not file_exists:
+            f = open("/var/log/demasc/alerts.log", "w")
+            f.close()
+    else:
+        os.mkdir('/var/log/demasc')
+        f = open("/var/log/demasc/alerts.log", "w")
+        f.close()
+
     opcion = ""
     while(True):
         print("")
@@ -234,7 +262,7 @@ def main():
         print("")
 
         if (opcion == '3'):
-            exit()
+            raise KeyboardInterrupt
         elif (opcion == '1'):
             analizar_pcap()
         elif (opcion == '2'):
