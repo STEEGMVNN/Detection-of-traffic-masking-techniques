@@ -5,6 +5,8 @@ import os
 import sys
 import threading
 import pyshark
+import argparse
+import textwrap
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
@@ -198,6 +200,17 @@ def socket_escribir():
         print("Escrito el fichero")
 
 def main():
+    """# Inizializo el parser de argumentos
+    parser = argparse.ArgumentParser(add_help=True, formatter_class=argparse.RawTextHelpFormatter)
+    # Añado los argumentos
+    parser.add_argument("<IP listening>", type=str, help="The IP that is listening on the server.")
+    parser.add_argument("<PORT listening>", type=int, help="The port that is listening on the server.")
+    parser.add_argument("<MODE>", type=str, help= textwrap.dedent('''\
+                                                                        1 - Analyze pcap file.
+                                                                        2 - Real time analysis.'''))
+    # Parseo los argumentos.
+    args = parser.parse_args(['<IP listening>', 'ip'])"""
+
     # Inicio el hilo que se va a encargar de escuchar y escribir en el fichero.
     print("Iniciando Socket")
     print(".....")
