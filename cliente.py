@@ -6,6 +6,7 @@ import socket
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 import time
+from colorama import init, Fore
 
 """def configuracion(ruta, host, port):
     linea_añadir = "export SSLKEYLOGFILE=" + ruta
@@ -31,7 +32,7 @@ def follow(thefile):
         yield line
 
 def main():
-    HOST = str(input("Introduce la IP del servidor: ")) # The server's hostname or IP address
+    HOST = str(input(Fore.GREEN + "Introduce la IP del servidor: ")) # The server's hostname or IP address
     PORT = 4444 # The port used by the server
 
     #sslkeylog_path = str(input("Introduce donde desea almacenar las claves: "))
@@ -68,12 +69,13 @@ def main():
 
 if __name__ == '__main__':
     try:
+        init(autoreset=True)
         main()
     except KeyboardInterrupt:
         print("")
-        print("/////////////////////////")
-        print('Terminando proceso...')
-        print("/////////////////////////")
+        print(Fore.YELLOW + "/////////////////////////")
+        print(Fore.YELLOW + 'Terminando proceso...')
+        print(Fore.YELLOW + "/////////////////////////")
         print("")
         try:
             sys.exit(0)
