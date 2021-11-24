@@ -5,7 +5,11 @@ import os
 import sys
 import threading
 import pyshark
-import argparse
+from colorama import init, Fore
+from tqdm import tqdm
+from time import sleep
+import colorama
+#import argparse
 import textwrap
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -80,14 +84,14 @@ def analizar_pcap():
     print("")
 
 def analisis_en_tiempo_real():
-    interfaz = input("Introduce la interfaz por la que quieres capturar tráfico: ")
-    paquetes = int(input("Introduce la cantidad de packetes que quieres capturar y comprobar: "))
+    interfaz = input(Fore.GREEN + "Introduce la interfaz por la que quieres capturar tráfico: ")
+    paquetes = int(input(Fore.GREEN + "Introduce la cantidad de packetes que quieres capturar y comprobar: "))
     print("")
-    print("Configurando interfaz y configurando los filtros...")
+    print(Fore.BLUE + "Configurando interfaz y configurando los filtros...")
     captura = pyshark.LiveCapture(interface=(interfaz), display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
     print("")
 
-    print("Iniciando analisis:")
+    print(Fore.BLUE + "Iniciando analisis:")
     print("")
     server_name = ''
     http_host = ''
@@ -100,21 +104,22 @@ def analisis_en_tiempo_real():
         if (validador == True):
             if (server_name != http_host):
                 print("")
-                print("///////////////////////////////////////////")
-                print("ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
-                print("     -Time: " + time)
-                print("     -MAC source: " + mac_src)
-                print("     -IP source: " + ip_src)
-                print("     -IP destination: " + ip_dst)
-                print("     -Server Name: " + server_name)
-                print("     -HTTP Host: " + http_host)
-                print("////////////////////////////////////////////")
+                print(Fore.YELLOW + "///////////////////////////////////////////")
+                print(Fore.YELLOW + "ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
+                print(Fore.YELLOW + "     -Time: " + time)
+                print(Fore.YELLOW + "     -MAC source: " + mac_src)
+                print(Fore.YELLOW + "     -IP source: " + ip_src)
+                print(Fore.YELLOW + "     -IP destination: " + ip_dst)
+                print(Fore.YELLOW + "     -Server Name: " + server_name)
+                print(Fore.YELLOW + "     -HTTP Host: " + http_host)
+                print(Fore.YELLOW + "////////////////////////////////////////////")
                 f = open("/var/log/demasc/alerts.log", "a")
                 f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
                 f.close()
             else:
                 print("")
-                print("Trafico normal")
+                pass
+                #print("Trafico normal")
         try:
             server_name = str(packet.tls.handshake_extensions_server_name)
             validador = False
@@ -134,23 +139,25 @@ def analisis_en_tiempo_real():
     if (validador == True):
         if (server_name != http_host):
             print("")
-            print("///////////////////////////////////////////")
-            print("ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
-            print("     -Time: " + time)
-            print("     -MAC source: " + mac_src)
-            print("     -IP source: " + ip_src)
-            print("     -IP destination: " + ip_dst)
-            print("     -Server Name: " + server_name)
-            print("     -HTTP Host: " + http_host)
-            print("////////////////////////////////////////////")
+            print(Fore.YELLOW + "///////////////////////////////////////////")
+            print(Fore.YELLOW + "ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
+            print(Fore.YELLOW + "     -Time: " + time)
+            print(Fore.YELLOW + "     -MAC source: " + mac_src)
+            print(Fore.YELLOW + "     -IP source: " + ip_src)
+            print(Fore.YELLOW + "     -IP destination: " + ip_dst)
+            print(Fore.YELLOW + "     -Server Name: " + server_name)
+            print(Fore.YELLOW + "     -HTTP Host: " + http_host)
+            print(Fore.YELLOW + "////////////////////////////////////////////")
             f = open("/var/log/demasc/alerts.log", "a")
             f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
             f.close()
         else:
             print("")
-            print("Trafico normal")
+            pass
+            #print("Trafico normal")
     print("")
-    input("Presiona cualquier boton para ir al menu principal.")
+    input(Fore.BLUE + "Presiona cualquier boton para ir al menu principal.")
+    os.system("clear")
     print("")
 
 def socket_escribir():
@@ -182,7 +189,7 @@ def socket_escribir():
             s.listen()
             conn, addr = s.accept()
             with conn:
-                print('Connected by: ', addr)
+                print(Fore.CYAN + 'Connected by: ', addr)
                 conn.sendall(str.encode(public_pem))
                 while True:
                     data = conn.recv(1024)
@@ -208,7 +215,7 @@ def socket_escribir():
             print("Escrito el fichero")
     except:
         print("\n")
-        print("[ERROR] No se ha podido iniciar el socket. Revisa que ningún cliente está activo.")
+        print(Fore.RED + "[ERROR] No se ha podido iniciar el socket. Revisa que ningún cliente está activo.")
         try:
             sys.exit(1)
         except:
@@ -227,12 +234,12 @@ def main():
     args = parser.parse_args(['<IP listening>', 'ip'])"""
 
     # Inicio el hilo que se va a encargar de escuchar y escribir en el fichero.
-    print("Iniciando Socket")
-    print(".....")
-    print(".....")
+    print(Fore.MAGENTA + "Iniciando Socket")
     socket_writer = threading.Thread(target=socket_escribir)
     socket_writer.start()
-    print("Socket iniciado")
+    for i in tqdm(range(0, 100), colour="magenta", desc="Socket starting"):
+        sleep(.1)
+    print(Fore.MAGENTA + "Socket iniciado")
 
     # Compruebo si existe el fichero de logs de este programa. Si no existe lo creo.
     folder_exists = os.path.isdir('/var/log/demasc')
@@ -250,15 +257,15 @@ def main():
     opcion = ""
     while(True):
         print("")
-        print("/////////////////////////////////////////")
-        print("Bienvenido a Domain Fronting detector.")
-        print("/////////////////////////////////////////")
+        print(Fore.BLUE + "/////////////////////////////////////////")
+        print(Fore.BLUE + "Bienvenido a Domain Fronting detector.")
+        print(Fore.BLUE + "/////////////////////////////////////////")
         print("")
-        print("1) Analizar un archivo pcap en busca de enmascaramiento de tráfico")
-        print("2) Analisis en tiempo real.")
-        print("3) Salir.")
+        print(Fore.BLUE + "1) Analizar un archivo pcap en busca de enmascaramiento de tráfico")
+        print(Fore.BLUE + "2) Analisis en tiempo real.")
+        print(Fore.BLUE + "3) Salir.")
         print("")
-        opcion = str(input("Introduce la opcion elegida: "))
+        opcion = str(input(Fore.GREEN + "Introduce la opcion elegida: "))
         print("")
 
         if (opcion == '3'):
@@ -270,12 +277,13 @@ def main():
 
 if __name__ == '__main__':
     try:
+        init(autoreset=True)
         main()
     except KeyboardInterrupt:
         print("")
-        print("/////////////////////////")
-        print('Terminando proceso...')
-        print("/////////////////////////")
+        print(Fore.YELLOW + "/////////////////////////")
+        print(Fore.YELLOW + 'Terminando proceso...')
+        print(Fore.YELLOW + "/////////////////////////")
         print("")
         try:
             sys.exit(0)
