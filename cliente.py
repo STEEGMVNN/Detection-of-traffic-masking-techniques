@@ -7,6 +7,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 import time
 from colorama import init, Fore
+import argparse
 
 """def configuracion(ruta, host, port):
     linea_añadir = "export SSLKEYLOGFILE=" + ruta
@@ -32,8 +33,25 @@ def follow(thefile):
         yield line
 
 def main():
-    HOST = str(input(Fore.GREEN + "Introduce la IP del servidor: ")) # The server's hostname or IP address
-    PORT = 4444 # The port used by the server
+    # Inizializo el parser de argumentos
+    parser = argparse.ArgumentParser(description="Cliente de la herramienta diseñada para detectar enmascaramiento de trafico.")
+
+    # Añado los argumentos.
+    parser.add_argument('--LHOST', '-LHOST', type=str, help="The IP that is listening on the server.")
+    parser.add_argument("--LPORT", "-LPORT", type=int, help="The port that is listening on the server.")
+    parser.add_argument("--interactive", action="store_true", help="Initializate the tool in interactive mode.")
+    arguments = parser.parse_args()
+
+    if (len(sys.argv) == 1):
+        print(Fore.RED + "[ERROR] See help. View of help: python3 cliente.py -h")
+        sys.exit(-1)
+
+    if (arguments.interactive):
+        HOST = str(input(Fore.GREEN + "Introduce la IP del servidor: ")) # The server's hostname or IP address
+        PORT = int(input("Introduce el puerto del servidor: ")) # The port used by the server
+    else:
+        HOST = arguments.LHOST
+        PORT = arguments.LPORT
 
     #sslkeylog_path = str(input("Introduce donde desea almacenar las claves: "))
     #configuracion(sslkeylog_path)
