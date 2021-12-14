@@ -35,7 +35,7 @@ def follow(thefile):
 
 def main():
     # Inizializo el parser de argumentos
-    parser = argparse.ArgumentParser(description="Cliente de la herramienta diseñada para detectar enmascaramiento de trafico.")
+    parser = argparse.ArgumentParser(description="Client of the tool designed to detect traffic masking.")
 
     # Añado los argumentos.
     parser.add_argument('--LHOST', '-LHOST', type=str, help="The IP that is listening on the server.")
@@ -44,12 +44,12 @@ def main():
     arguments = parser.parse_args()
 
     if (len(sys.argv) == 1):
-        print(Fore.RED + "[ERROR] See help. View of help: python3 cliente.py -h")
+        print(Fore.RED + "[ERROR] See help for a correct use of the tool. View of help: python3 server.py -h")
         sys.exit(-1)
 
     if (arguments.interactive):
-        HOST = str(input(Fore.GREEN + "Introduce la IP del servidor: ")) # The server's hostname or IP address
-        PORT = int(input("Introduce el puerto del servidor: ")) # The port used by the server
+        HOST = str(input(Fore.GREEN + "Enter the IP of the server: ")) # The server's hostname or IP address
+        PORT = int(input("Enter the server port: ")) # The port used by the server
     else:
         HOST = arguments.LHOST
         PORT = arguments.LPORT
@@ -83,7 +83,7 @@ def main():
         print(line)
         conn.sendall(line)
     conn.close()
-    print("Enviado el fichero entero.")
+    print("The entire file has been sent.")
 
 if __name__ == '__main__':
     try:
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("")
         print(Fore.YELLOW + "/////////////////////////")
-        print(Fore.YELLOW + 'Terminando proceso...')
+        print(Fore.YELLOW + 'Finalizing process...')
         print(Fore.YELLOW + "/////////////////////////")
         print("")
         try:
