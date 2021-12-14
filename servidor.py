@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.8
 
 import socket
+import ssl
 import os
 import sys
 import threading
@@ -15,6 +16,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 import traceback
 
+
 def analizar_pcap(interactive, path):
     if interactive:
         ruta_fichero = str(input("Indica la ruta del fichero pcap: "))
@@ -22,7 +24,8 @@ def analizar_pcap(interactive, path):
         ruta_fichero = path
     print("")
     print("Filtrando archivo pcap...")
-    pcap_filtrado = pyshark.FileCapture(ruta_fichero, display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    pcap_filtrado = pyshark.FileCapture(ruta_fichero,
+                                        display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
     print("")
 
     print("Iniciando analisis:")
@@ -60,7 +63,7 @@ def analizar_pcap(interactive, path):
 
         try:
             http_host = str(packet.http.host)
-            http_host = "www."+http_host
+            http_host = "www." + http_host
             time = str(packet.frame_info.time)
             ip_src = str(packet.ip.src)
             ip_dst = str(packet.ip.dst)
@@ -87,6 +90,7 @@ def analizar_pcap(interactive, path):
     input("Presiona cualquier boton para ir al menu principal.")
     print("")
 
+
 def analisis_en_tiempo_real(interactive, interface, packets):
     if interactive:
         interfaz = input(Fore.GREEN + "Introduce la interfaz por la que quieres capturar tráfico: ")
@@ -96,7 +100,8 @@ def analisis_en_tiempo_real(interactive, interface, packets):
         paquetes = packets
     print("")
     print(Fore.BLUE + "Configurando interfaz y configurando los filtros...")
-    captura = pyshark.LiveCapture(interface=(interfaz), display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    captura = pyshark.LiveCapture(interface=(interfaz),
+                                  display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
     print("")
 
     print(Fore.BLUE + "Iniciando analisis:")
@@ -122,12 +127,13 @@ def analisis_en_tiempo_real(interactive, interface, packets):
                 print(Fore.YELLOW + "     -HTTP Host: " + http_host)
                 print(Fore.YELLOW + "////////////////////////////////////////////")
                 f = open("/var/log/demasc/alerts.log", "a")
-                f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
+                f.write(
+                    "[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host + "\n")
                 f.close()
             else:
                 print("")
                 pass
-                #print("Trafico normal")
+                # print("Trafico normal")
         try:
             server_name = str(packet.tls.handshake_extensions_server_name)
             validador = False
@@ -157,71 +163,61 @@ def analisis_en_tiempo_real(interactive, interface, packets):
             print(Fore.YELLOW + "     -HTTP Host: " + http_host)
             print(Fore.YELLOW + "////////////////////////////////////////////")
             f = open("/var/log/demasc/alerts.log", "a")
-            f.write("[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host+"\n")
+            f.write(
+                "[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host + "\n")
             f.close()
         else:
             print("")
             pass
-            #print("Trafico normal")
+            # print("Trafico normal")
     print("")
     input(Fore.BLUE + "Presiona cualquier boton para ir al menu principal.")
     if interactive:
         os.system("clear")
     print("")
 
+
 def socket_escribir(lhost, lport):
     try:
-        default_length = 256
-        # Generating private key (RsaKey object) of key length of 1024 bits
-        private_key = RSA.generate(2048)
-        # Generating the public key (RsaKey object) from the private key
-        public_key = private_key.publickey()
-
-        # Converting the RsaKey objects to string
-        public_pem = public_key.export_key().decode()
-
-        # Instantiating PKCS1_OAEP object with the private key for decryption
-        decrypt = PKCS1_OAEP.new(key=private_key)
-
         HOST = lhost  # Standard loopback interface address (localhost)
         PORT = lport  # Port to listen on (non-privileged ports are > 1023)
+
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_cert_chain(certfile='/home/servidor/Escritorio/public.pem', keyfile='/home/servidor/Escritorio/key.key')
+
+        bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        bindsocket.bind((lhost, lport))
+        bindsocket.listen()
 
         # Creamos/abrimos el fichero que va a almacenar los pre masters.
         try:
             f = open("/tmp/.ssl-key.log", "x")
-            f = open("/tmp/.ssl-key.log", "w")
+            f = open("/tmp/.ssl-key.log", "wb")
         except:
-            f = open("/tmp/.ssl-key.log", "w")
+            f = open("/tmp/.ssl-key.log", "wb")
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((HOST, PORT))
-            s.listen()
-            conn, addr = s.accept()
-            with conn:
-                print(Fore.CYAN + 'Connected by: ', addr)
-                conn.sendall(str.encode(public_pem))
-                while True:
-                    data = conn.recv(1024)
+        newsocket, fromaddr = bindsocket.accept()
+        connstream = context.wrap_socket(newsocket, server_side=True)
+
+        print(Fore.CYAN + 'Connected by: ', fromaddr)
+        while True:
+            try:
+                data = connstream.recv(1024)
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+                while data:
                     if not data:
                         break
-                    length = len(data)
-                    offset = 0
-                    res = []
-
-                    while length - offset > 0:
-                        if length - offset > default_length:
-                            res.append(decrypt.decrypt(data[offset: offset + default_length]))
-                        else:
-                            res.append(decrypt.decrypt(data[offset:]))
-                        offset += default_length
-                    decrypt_byte = b''.join(res)
-                    decrypted = decrypt_byte.decode()
-                    f.write(decrypted)
+                    data = connstream.recv(1024)
+                    f.write(data)
                     f.flush()
                     os.fsync(f.fileno())
-            f.close()
-            conn.close()
-            print("Escrito el fichero")
+                break
+            except:
+                connstream.close()
+        connstream.close()
+        f.close()
     except Exception:
         print("\n")
         print(Fore.RED + "[ERROR] No se ha podido iniciar el socket. Revisa que ningún cliente está activo.")
@@ -230,6 +226,7 @@ def socket_escribir(lhost, lport):
             sys.exit(1)
         except:
             os._exit(1)
+
 
 def main():
     # Inizializo el parser de argumentos
@@ -293,7 +290,7 @@ def main():
 
     if INTERACTIVE:
         opcion = ""
-        while(True):
+        while (True):
             print("")
             print(Fore.BLUE + "/////////////////////////////////////////")
             print(Fore.BLUE + "Bienvenido a Domain Fronting detector.")
@@ -328,6 +325,7 @@ def main():
                 sys.exit(0)
             except SystemExit:
                 os._exit(0)
+
 
 if __name__ == '__main__':
     try:
