@@ -17,18 +17,17 @@ from Crypto.PublicKey import RSA
 import traceback
 
 
-def analizar_pcap(interactive, path):
+def analyze_pcap(interactive, path):
     if interactive:
-        ruta_fichero = str(input("Indica la ruta del fichero pcap: "))
+        file_path = str(input("Indicates the path to the pcap file: "))
     else:
-        ruta_fichero = path
+        file_path = path
     print("")
-    print("Filtrando archivo pcap...")
-    pcap_filtrado = pyshark.FileCapture(ruta_fichero,
-                                        display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    print("Filtering pcap file...")
+    pcap_filtered = pyshark.FileCapture(file_path, display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
     print("")
 
-    print("Iniciando analisis:")
+    print("Initiating analysis:")
     print("")
     print("")
 
@@ -38,9 +37,9 @@ def analizar_pcap(interactive, path):
     ip_src = ''
     ip_dst = ''
     mac_src = ''
-    validador = False
-    for packet in pcap_filtrado:
-        if (validador == True):
+    validator = False
+    for packet in pcap_filtered:
+        if (validator == True):
             if (server_name != http_host):
                 print("")
                 print("///////////////////////////////////////////")
@@ -54,10 +53,10 @@ def analizar_pcap(interactive, path):
                 print("////////////////////////////////////////////")
             else:
                 print("")
-                print("Trafico normal")
+                print("Normal traffic")
         try:
             server_name = str(packet.tls.handshake_extensions_server_name)
-            validador = False
+            validator = False
         except:
             pass
 
@@ -68,10 +67,10 @@ def analizar_pcap(interactive, path):
             ip_src = str(packet.ip.src)
             ip_dst = str(packet.ip.dst)
             mac_src = str(packet.eth.src)
-            validador = True
+            validator = True
         except:
             pass
-    if (validador == True):
+    if (validator == True):
         if (server_name != http_host):
             print("")
             print("///////////////////////////////////////////")
@@ -85,26 +84,25 @@ def analizar_pcap(interactive, path):
             print("////////////////////////////////////////////")
         else:
             print("")
-            print("Trafico normal")
+            print("Normal traffic")
     print("")
-    input("Presiona cualquier boton para ir al menu principal.")
+    input("Press any button to go to the main menu.")
     print("")
 
 
-def analisis_en_tiempo_real(interactive, interface, packets):
+def analysis_in_real_time(interactive, interface, packets):
     if interactive:
-        interfaz = input(Fore.GREEN + "Introduce la interfaz por la que quieres capturar tráfico: ")
-        paquetes = int(input(Fore.GREEN + "Introduce la cantidad de packetes que quieres capturar y comprobar: "))
+        interface_def = input(Fore.GREEN + "Enter the interface through which you want to capture traffic: ")
+        packets_def = int(input(Fore.GREEN + "Enter the number of packets you want to capture and check: "))
     else:
-        interfaz = interface
-        paquetes = packets
+        interface_def = interface
+        packets_def = packets
     print("")
-    print(Fore.BLUE + "Configurando interfaz y configurando los filtros...")
-    captura = pyshark.LiveCapture(interface=(interfaz),
-                                  display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    print(Fore.BLUE + "Configuring the interface and setting the filters...")
+    capture = pyshark.LiveCapture(interface=(interface_def), display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
     print("")
 
-    print(Fore.BLUE + "Iniciando analisis:")
+    print(Fore.BLUE + "Starting analysis:")
     print("")
     server_name = ''
     http_host = ''
@@ -112,9 +110,9 @@ def analisis_en_tiempo_real(interactive, interface, packets):
     ip_src = ''
     ip_dst = ''
     mac_src = ''
-    validador = False
-    for packet in captura.sniff_continuously(packet_count=paquetes):
-        if (validador == True):
+    validator = False
+    for packet in capture.sniff_continuously(packet_count=packets_def):
+        if (validator == True):
             if (server_name != http_host):
                 print("")
                 print(Fore.YELLOW + "///////////////////////////////////////////")
@@ -133,10 +131,10 @@ def analisis_en_tiempo_real(interactive, interface, packets):
             else:
                 print("")
                 pass
-                # print("Trafico normal")
+                # print("Normal traffic")
         try:
             server_name = str(packet.tls.handshake_extensions_server_name)
-            validador = False
+            validator = False
         except:
             pass
 
@@ -147,10 +145,10 @@ def analisis_en_tiempo_real(interactive, interface, packets):
             ip_src = str(packet.ip.src)
             ip_dst = str(packet.ip.dst)
             mac_src = str(packet.eth.src)
-            validador = True
+            validator = True
         except:
             pass
-    if (validador == True):
+    if (validator == True):
         if (server_name != http_host):
             print("")
             print(Fore.YELLOW + "///////////////////////////////////////////")
@@ -169,15 +167,15 @@ def analisis_en_tiempo_real(interactive, interface, packets):
         else:
             print("")
             pass
-            # print("Trafico normal")
+            # print("Normal traffic")
     print("")
-    input(Fore.BLUE + "Presiona cualquier boton para ir al menu principal.")
+    input(Fore.BLUE + "Press any button to go to the main menu.")
     if interactive:
         os.system("clear")
     print("")
 
 
-def socket_escribir(lhost, lport):
+def socket_write(lhost, lport):
     try:
         HOST = lhost  # Standard loopback interface address (localhost)
         PORT = lport  # Port to listen on (non-privileged ports are > 1023)
@@ -199,7 +197,7 @@ def socket_escribir(lhost, lport):
         newsocket, fromaddr = bindsocket.accept()
         connstream = context.wrap_socket(newsocket, server_side=True)
 
-        print(Fore.CYAN + 'Connected by: ', fromaddr)
+        print(Fore.CYAN + 'Connected by: ', fromaddr[0])
         while True:
             try:
                 data = connstream.recv(1024)
@@ -220,17 +218,16 @@ def socket_escribir(lhost, lport):
         f.close()
     except Exception:
         print("\n")
-        print(Fore.RED + "[ERROR] No se ha podido iniciar el socket. Revisa que ningún cliente está activo.")
+        print(Fore.RED + "[ERROR] The socket could not be started. Check that no client is active.")
         traceback.print_exc()
         try:
             sys.exit(1)
         except:
             os._exit(1)
 
-
 def main():
-    # Inizializo el parser de argumentos
-    parser = argparse.ArgumentParser(description="Herramienta diseñada para detectar enmascaramiento de trafico.")
+    # Inicializo el parser de argumentos
+    parser = argparse.ArgumentParser(description="Tool designed to detect traffic masking.")
 
     # Añado los argumentos.
     parser.add_argument('--LHOST', '-LHOST', type=str, help="The IP that is listening on the server.")
@@ -246,11 +243,11 @@ def main():
 
     # Controlo que no se inicialize el script sin argumentos.
     if (len(sys.argv) == 1):
-        print(Fore.RED + "[ERROR] See help. View of help: python3 server.py -h")
+        print(Fore.RED + "[ERROR] See help for a correct use of the tool. View of help: python3 server.py -h")
         sys.exit(-1)
 
     # Inicio el hilo que se va a encargar de escuchar y escribir en el fichero.
-    print(Fore.MAGENTA + "Iniciando Socket")
+    print(Fore.MAGENTA + "Starting Socket")
 
     # Creo variables esenciales.
     if not arguments.interactive:
@@ -263,17 +260,17 @@ def main():
         MODE = arguments.mode
     else:
         INTERACTIVE = True
-        LHOST = str(input(Fore.GREEN + "Introduce la IP del servidor: "))
-        LPORT = int(input(Fore.GREEN + "Introduce el puerto a la escucha: "))
+        LHOST = str(input(Fore.GREEN + "Enter the IP of the server: "))
+        LPORT = int(input(Fore.GREEN + "Enter the listening port: "))
         PATH = None
         INTERFACE = None
         PACKETS = None
 
-    socket_writer = threading.Thread(target=socket_escribir, args=(LHOST, LPORT))
-    socket_writer.start()
+    socket_writer_thread = threading.Thread(target=socket_write, args=(LHOST, LPORT))
+    socket_writer_thread.start()
     for i in tqdm(range(0, 100), colour="magenta", desc="Socket starting"):
         sleep(.1)
-    print(Fore.MAGENTA + "Socket iniciado")
+    print(Fore.MAGENTA + "Socket started")
 
     # Compruebo si existe el fichero de logs de este programa. Si no existe lo creo.
     folder_exists = os.path.isdir('/var/log/demasc')
@@ -293,25 +290,25 @@ def main():
         while (True):
             print("")
             print(Fore.BLUE + "/////////////////////////////////////////")
-            print(Fore.BLUE + "Bienvenido a Domain Fronting detector.")
+            print(Fore.BLUE + "Welcome to Domain Fronting Detector.")
             print(Fore.BLUE + "/////////////////////////////////////////")
             print("")
-            print(Fore.BLUE + "1) Analizar un archivo pcap en busca de enmascaramiento de tráfico")
-            print(Fore.BLUE + "2) Analisis en tiempo real.")
-            print(Fore.BLUE + "3) Salir.")
+            print(Fore.BLUE + "1) Analyzing a pcap file for traffic masking.")
+            print(Fore.BLUE + "2) Real-time analysis.")
+            print(Fore.BLUE + "3) Exit.")
             print("")
-            opcion = str(input(Fore.GREEN + "Introduce la opcion elegida: "))
+            opcion = str(input(Fore.GREEN + "Enter the chosen option: "))
             print("")
 
             if (opcion == '3'):
                 raise KeyboardInterrupt
             elif (opcion == '1'):
-                analizar_pcap(INTERACTIVE, PATH)
+                analyze_pcap(INTERACTIVE, PATH)
             elif (opcion == '2'):
-                analisis_en_tiempo_real(INTERACTIVE, INTERFACE, PACKETS)
+                analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS)
     else:
         if (MODE == 1):
-            analizar_pcap(INTERACTIVE, PATH)
+            analyze_pcap(INTERACTIVE, PATH)
             try:
                 sys.exit(0)
             except SystemExit:
@@ -320,7 +317,7 @@ def main():
             if (PACKETS == None) or (INTERFACE == None):
                 print("Interface and packets are mandatory in cli mode.")
                 os._exit(-1)
-            analisis_en_tiempo_real(INTERACTIVE, INTERFACE, PACKETS)
+            analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS)
             try:
                 sys.exit(0)
             except SystemExit:
@@ -334,7 +331,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("")
         print(Fore.YELLOW + "/////////////////////////")
-        print(Fore.YELLOW + 'Terminando proceso...')
+        print(Fore.YELLOW + 'Finalizing process...')
         print(Fore.YELLOW + "/////////////////////////")
         print("")
         try:
