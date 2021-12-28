@@ -17,18 +17,25 @@ from Crypto.PublicKey import RSA
 import traceback
 
 
-def analyze_pcap(interactive, path):
+def analyze_pcap(interactive, path, secrets):
     if interactive:
-        file_path = str(input("Indicates the path to the pcap file: "))
+        file_path = str(input(Fore.GREEN + "Indicates the path to the pcap file: "))
+        secrets_path = str(input(Fore.GREEN + "Introduce el directorio donde estan los secretos: "))
     else:
         file_path = path
+        secrets_path = secrets
+
     print("")
-    print("Filtering pcap file...")
-    pcap_filtered = pyshark.FileCapture(file_path, display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    print(Fore.BLUE + "Filtering pcap file...")
+    pcap_filtered = pyshark.FileCapture(file_path, override_prefs={'tls.keylog_file': secrets_path},
+                                        display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host) or (udp.dstport == 53 and dns.qry.name)')
     print("")
 
-    print("Initiating analysis:")
+    pcap_filtered.load_packets()
+    print(Fore.BLUE + "After applying the filters the number of packets is: " + str(len(pcap_filtered)))
     print("")
+
+    print(Fore.BLUE + "Initiating analysis:")
     print("")
 
     server_name = ''
@@ -37,29 +44,19 @@ def analyze_pcap(interactive, path):
     ip_src = ''
     ip_dst = ''
     mac_src = ''
-    validator = False
+    dns_query = ''
     for packet in pcap_filtered:
-        if (validator == True):
-            if (server_name != http_host):
-                print("")
-                print("///////////////////////////////////////////")
-                print("ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
-                print("     -Time: " + time)
-                print("     -MAC source: " + mac_src)
-                print("     -IP source: " + ip_src)
-                print("     -IP destination: " + ip_dst)
-                print("     -Server Name: " + server_name)
-                print("     -HTTP Host: " + http_host)
-                print("////////////////////////////////////////////")
-            else:
-                print("")
-                print("Normal traffic")
         try:
-            server_name = str(packet.tls.handshake_extensions_server_name)
-            validator = False
+            dns_query = str(packet.dns.qry_name)
         except:
             pass
-
+        try:
+            server_name = str(packet.tls.handshake_extensions_server_name)
+            if "doh." in server_name or "dns" in server_name or "dot." in server_name:
+                server_name = ''
+            http_host = ''
+        except:
+            pass
         try:
             http_host = str(packet.http.host)
             http_host = "www." + http_host
@@ -67,30 +64,47 @@ def analyze_pcap(interactive, path):
             ip_src = str(packet.ip.src)
             ip_dst = str(packet.ip.dst)
             mac_src = str(packet.eth.src)
-            validator = True
         except:
             pass
-    if (validator == True):
-        if (server_name != http_host):
-            print("")
-            print("///////////////////////////////////////////")
-            print("ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
-            print("     -Time: " + time)
-            print("     -MAC source: " + mac_src)
-            print("     -IP source: " + ip_src)
-            print("     -IP destination: " + ip_dst)
-            print("     -Server Name: " + server_name)
-            print("     -HTTP Host: " + http_host)
-            print("////////////////////////////////////////////")
+        if (server_name != '' and http_host != ''):
+            if (server_name != http_host):
+                print("")
+                print(Fore.YELLOW + "///////////////////////////////////////////")
+                print(Fore.YELLOW + "ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
+                print(Fore.YELLOW + "     -Time: " + time)
+                print(Fore.YELLOW + "     -MAC source: " + mac_src)
+                print(Fore.YELLOW + "     -IP source: " + ip_src)
+                print(Fore.YELLOW + "     -IP destination: " + ip_dst)
+                print(Fore.YELLOW + "     -Server Name: " + server_name)
+                print(Fore.YELLOW + "     -HTTP Host: " + http_host)
+                print(Fore.YELLOW + "////////////////////////////////////////////")
+                server_name = ''
+                http_host = ''
+                dns_query = ''
+        elif (dns_query != '' and http_host != ''):
+            if (dns_query != http_host):
+                print("")
+                print(Fore.YELLOW + "///////////////////////////////////////////")
+                print(Fore.YELLOW + "ALERT!!!! DOMAIN HIDING DETECTED!!!!")
+                print(Fore.YELLOW + "     -Time: " + time)
+                print(Fore.YELLOW + "     -MAC source: " + mac_src)
+                print(Fore.YELLOW + "     -IP source: " + ip_src)
+                print(Fore.YELLOW + "     -IP destination: " + ip_dst)
+                print(Fore.YELLOW + "     -DNS Query Name: " + dns_query)
+                print(Fore.YELLOW + "     -HTTP Host: " + http_host)
+                print(Fore.YELLOW + "////////////////////////////////////////////")
+                server_name = ''
+                http_host = ''
+                dns_query = ''
         else:
-            print("")
-            print("Normal traffic")
+            pass
     print("")
-    input("Press any button to go to the main menu.")
+    input(Fore.BLUE + "Press any button to go to the main menu.")
+    if interactive:
+        os.system("clear")
     print("")
 
-
-def analysis_in_real_time(interactive, interface, packets):
+def analysis_in_real_time(interactive, interface, packets, secrets):
     if interactive:
         interface_def = input(Fore.GREEN + "Enter the interface through which you want to capture traffic: ")
         packets_def = int(input(Fore.GREEN + "Enter the number of packets you want to capture and check: "))
@@ -99,7 +113,7 @@ def analysis_in_real_time(interactive, interface, packets):
         packets_def = packets
     print("")
     print(Fore.BLUE + "Configuring the interface and setting the filters...")
-    capture = pyshark.LiveCapture(interface=(interface_def), display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host)')
+    capture = pyshark.LiveCapture(interface=(interface_def), override_prefs={'tls.keylog_file': secrets}, display_filter='(tcp.dstport == 443 and tls.handshake.extensions_server_name) or (tcp.dstport == 443 and http.host) or (udp.dstport == 53 and dns.qry.name)')
     print("")
 
     print(Fore.BLUE + "Starting analysis:")
@@ -110,9 +124,29 @@ def analysis_in_real_time(interactive, interface, packets):
     ip_src = ''
     ip_dst = ''
     mac_src = ''
-    validator = False
+    dns_query = ''
     for packet in capture.sniff_continuously(packet_count=packets_def):
-        if (validator == True):
+        try:
+            dns_query = str(packet.dns.qry_name)
+        except:
+            pass
+        try:
+            server_name = str(packet.tls.handshake_extensions_server_name)
+            if "doh." in server_name or "dns" in server_name or "dot." in server_name:
+                server_name = ''
+            http_host = ''
+        except:
+            pass
+        try:
+            http_host = str(packet.http.host)
+            http_host = "www." + http_host
+            time = str(packet.frame_info.time)
+            ip_src = str(packet.ip.src)
+            ip_dst = str(packet.ip.dst)
+            mac_src = str(packet.eth.src)
+        except:
+            pass
+        if (server_name != '' and http_host != ''):
             if (server_name != http_host):
                 print("")
                 print(Fore.YELLOW + "///////////////////////////////////////////")
@@ -128,52 +162,35 @@ def analysis_in_real_time(interactive, interface, packets):
                 f.write(
                     "[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host + "\n")
                 f.close()
-            else:
+                server_name = ''
+                http_host = ''
+                dns_query = ''
+        elif (dns_query != '' and http_host != ''):
+            if (dns_query != http_host):
                 print("")
-                pass
-                # print("Normal traffic")
-        try:
-            server_name = str(packet.tls.handshake_extensions_server_name)
-            validator = False
-        except:
-            pass
-
-        try:
-            http_host = str(packet.http.host)
-            http_host = "www." + http_host
-            time = str(packet.frame_info.time)
-            ip_src = str(packet.ip.src)
-            ip_dst = str(packet.ip.dst)
-            mac_src = str(packet.eth.src)
-            validator = True
-        except:
-            pass
-    if (validator == True):
-        if (server_name != http_host):
-            print("")
-            print(Fore.YELLOW + "///////////////////////////////////////////")
-            print(Fore.YELLOW + "ALERT!!!! DOMAIN FRONTING DETECTED!!!!")
-            print(Fore.YELLOW + "     -Time: " + time)
-            print(Fore.YELLOW + "     -MAC source: " + mac_src)
-            print(Fore.YELLOW + "     -IP source: " + ip_src)
-            print(Fore.YELLOW + "     -IP destination: " + ip_dst)
-            print(Fore.YELLOW + "     -Server Name: " + server_name)
-            print(Fore.YELLOW + "     -HTTP Host: " + http_host)
-            print(Fore.YELLOW + "////////////////////////////////////////////")
-            f = open("/var/log/demasc/alerts.log", "a")
-            f.write(
-                "[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + server_name + " != " + http_host + "\n")
-            f.close()
+                print(Fore.YELLOW + "///////////////////////////////////////////")
+                print(Fore.YELLOW + "ALERT!!!! DOMAIN HIDING DETECTED!!!!")
+                print(Fore.YELLOW + "     -Time: " + time)
+                print(Fore.YELLOW + "     -MAC source: " + mac_src)
+                print(Fore.YELLOW + "     -IP source: " + ip_src)
+                print(Fore.YELLOW + "     -IP destination: " + ip_dst)
+                print(Fore.YELLOW + "     -DNS Query Name: " + dns_query)
+                print(Fore.YELLOW + "     -HTTP Host: " + http_host)
+                print(Fore.YELLOW + "////////////////////////////////////////////")
+                f = open("/var/log/demasc/alerts.log", "a")
+                f.write(
+                    "[" + time + "]" + " " + ip_src + "[" + mac_src + "]" + " --> " + ip_dst + " Reason: " + dns_query + " != " + http_host + "\n")
+                f.close()
+                server_name = ''
+                http_host = ''
+                dns_query = ''
         else:
-            print("")
             pass
-            # print("Normal traffic")
     print("")
     input(Fore.BLUE + "Press any button to go to the main menu.")
     if interactive:
         os.system("clear")
     print("")
-
 
 def socket_write(lhost, lport):
     try:
@@ -226,6 +243,9 @@ def socket_write(lhost, lport):
             os._exit(1)
 
 def main():
+    #Limpio la terminal.
+    os.system("clear")
+
     # Inicializo el parser de argumentos
     parser = argparse.ArgumentParser(description="Tool designed to detect traffic masking.")
 
@@ -235,6 +255,7 @@ def main():
     parser.add_argument("--interface", "-i", type=str, help="The interface where are you going to listen in.")
     parser.add_argument("--packets", "-packets", type=int, help="The number of packets you want to analyze.")
     parser.add_argument("--path", "-path", type=str, help="The path to the pcap file.")
+    parser.add_argument("--secrets_path", "-secrets_path", type=str, help="The path to the secrets file.")
     parser.add_argument("--mode", "-m", type=int, help=textwrap.dedent('''\
                                                                                 1 - Analyze pcap file.
                                                                                 2 - Real time analysis.'''))
@@ -257,12 +278,14 @@ def main():
         INTERFACE = arguments.interface
         PACKETS = arguments.packets
         PATH = arguments.path
+        SECRETS_PATH = arguments.secrets_path
         MODE = arguments.mode
     else:
         INTERACTIVE = True
         LHOST = str(input(Fore.GREEN + "Enter the IP of the server: "))
         LPORT = int(input(Fore.GREEN + "Enter the listening port: "))
         PATH = None
+        SECRETS_PATH = None
         INTERFACE = None
         PACKETS = None
 
@@ -303,12 +326,12 @@ def main():
             if (opcion == '3'):
                 raise KeyboardInterrupt
             elif (opcion == '1'):
-                analyze_pcap(INTERACTIVE, PATH)
+                analyze_pcap(INTERACTIVE, PATH, SECRETS_PATH)
             elif (opcion == '2'):
-                analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS)
+                analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS, "/tmp/.ssl-key.log")
     else:
         if (MODE == 1):
-            analyze_pcap(INTERACTIVE, PATH)
+            analyze_pcap(INTERACTIVE, PATH, SECRETS_PATH)
             try:
                 sys.exit(0)
             except SystemExit:
@@ -317,12 +340,11 @@ def main():
             if (PACKETS == None) or (INTERFACE == None):
                 print("Interface and packets are mandatory in cli mode.")
                 os._exit(-1)
-            analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS)
+            analysis_in_real_time(INTERACTIVE, INTERFACE, PACKETS, "/tmp/.ssl-key.log")
             try:
                 sys.exit(0)
             except SystemExit:
                 os._exit(0)
-
 
 if __name__ == '__main__':
     try:

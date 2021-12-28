@@ -34,6 +34,9 @@ def follow(thefile):
         yield line
 
 def main():
+    #Limpio la terminal.
+    os.system("clear")
+
     # Inizializo el parser de argumentos
     parser = argparse.ArgumentParser(description="Client of the tool designed to detect traffic masking.")
 
