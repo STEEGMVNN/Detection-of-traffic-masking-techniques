@@ -48,6 +48,8 @@ def analyze_pcap(interactive, path, secrets):
     for packet in pcap_filtered:
         try:
             dns_query = str(packet.dns.qry_name)
+            if "google" in dns_query or "ubuntu" in dns_query:
+                dns_query = ''
         except:
             pass
         try:
@@ -128,6 +130,8 @@ def analysis_in_real_time(interactive, interface, packets, secrets):
     for packet in capture.sniff_continuously(packet_count=packets_def):
         try:
             dns_query = str(packet.dns.qry_name)
+            if "google" in dns_query or "ubuntu" in dns_query:
+                dns_query = ''
         except:
             pass
         try:
