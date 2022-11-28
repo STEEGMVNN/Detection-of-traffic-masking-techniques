@@ -196,13 +196,14 @@ def analysis_in_real_time(interactive, interface, packets, secrets):
         os.system("clear")
     print("")
 
-def socket_write(lhost, lport):
+def socket_write(lhost, lport, certfile_var, keyfile_var):
     try:
         HOST = lhost  # Standard loopback interface address (localhost)
         PORT = lport  # Port to listen on (non-privileged ports are > 1023)
 
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_cert_chain(certfile='/home/servidor/Escritorio/public.pem', keyfile='/home/servidor/Escritorio/key.key')
+        #context.load_cert_chain(certfile='/home/servidor/Escritorio/public.pem', keyfile='/home/servidor/Escritorio/key.key')
+        context.load_cert_chain(certfile=certfile_var, keyfile=keyfile_var)
 
         bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         bindsocket.bind((lhost, lport))
@@ -264,6 +265,8 @@ def main():
                                                                                 1 - Analyze pcap file.
                                                                                 2 - Real time analysis.'''))
     parser.add_argument("--interactive", action="store_true", help="Initializate the tool in interactive mode.")
+    parser.add_argument("--certfile", "-certfile", type=str, help="Certificate required to encrypt traffic between server.py and client.py.")
+    parser.add_argument("--keyfile", "-keyfile", type=str, help="Key required to encrypt traffic between server.py and client.py.")
     arguments = parser.parse_args()
 
     # Controlo que no se inicialize el script sin argumentos.
@@ -284,6 +287,8 @@ def main():
         PATH = arguments.path
         SECRETS_PATH = arguments.secrets_path
         MODE = arguments.mode
+        CERTFILE = arguments.certfile
+        KEYFILE = arguments.keyfile
     else:
         INTERACTIVE = True
         LHOST = str(input(Fore.GREEN + "Enter the IP of the server: "))
@@ -292,8 +297,10 @@ def main():
         SECRETS_PATH = None
         INTERFACE = None
         PACKETS = None
+        CERTFILE = str(input(Fore.GREEN + "Enter the certificate path: "))
+        KEYFILE = str(input(Fore.GREEN + "Enter the key path: "))
 
-    socket_writer_thread = threading.Thread(target=socket_write, args=(LHOST, LPORT))
+    socket_writer_thread = threading.Thread(target=socket_write, args=(LHOST, LPORT, CERTFILE, KEYFILE))
     socket_writer_thread.start()
     sleep(1)
     print(Fore.MAGENTA + "Socket started")
